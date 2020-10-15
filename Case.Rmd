@@ -1,0 +1,307 @@
+---
+title: "SOA comp"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(mapmisc)
+library(magrittr)    
+library(dplyr)         
+library(rpart)
+library(partykit)
+library(knitr)
+library(tidyverse)
+library(faraway)
+library(lme4)      
+library(SMPracticals)  
+library(nlme)
+library(INLA)
+library(Pmisc)
+library(Hmisc)
+library(MEMSS)
+library(MASS)
+library(ggplot2)
+library(kableExtra)
+library(expm)
+library('R.utils')
+library(psych)
+
+```
+
+
+
+```{r}
+CD = read.csv("D:/R_Project/SOA Case/CompanyData.csv")
+
+AD = read.csv("D:/R_Project/SOA Case/AggregateData.csv")
+
+```
+
+```{r}
+CD$ID = CD[,1]
+AD$Year =  AD[,1]
+
+CD
+AD
+
+ggplot() +
+  geom_line(aes(Year, Transport, colour="Transport"), AD) +
+  geom_line(aes(Year, Waste, colour="Waste"), AD) +
+  geom_line(aes(Year, Other, colour="Other"), AD) +
+  geom_line(aes(Year, Total, colour="Total"), AD) +
+  geom_line(aes(Year, AD$"Buildings...Land.Use", colour="Land Use"), AD) +
+  geom_line(aes(Year, AD$"Energy..Manufacturing...Construction", colour="Energy/Manufacturing/Construction"), AD) +
+  geom_line(aes(Year, AD$"Industrial.Processes...Product.Use", colour="Product Use"), AD) +
+  labs(title="CO2 emission by different sectors") +
+  labs(x="Year", y="CO2") +
+  geom_point() +
+  theme(plot.title=element_text(size=15,
+                                    hjust=0.5,
+                                    lineheight=1.2))
+```
+
+
+```{r}
+CD
+
+CDre = CD%>%filter(CD$"X2019."!=0,
+                   CD$"X2018"!=0,
+                   CD$"X2017"!=0,
+                   CD$"X2016"!=0,
+                   CD$"X2015"!=0,
+                   )
+
+CDre$ave = (CDre$"X2019."+CDre$"X2018"+ CDre$"X2017"+ CDre$"X2016"+CDre$"X2015")/5
+
+CDre
+
+# ggplot(CDre, aes(x=ave)) + geom_bar(breaks = 2000000)
+
+
+```
+
+
+
+```{r}
+ggplot(AD, aes(x=Year,y=Population)) + geom_point() + geom_line()
+ggplot(AD, aes(x=Year,y=AD$"Gross.Domestic.Product..current.皮.")) + geom_point() + geom_line()
+ggplot(AD, aes(x=Year,y=AD$"Land.Area..sq.KM.")) + geom_point() + geom_line()
+ggplot(AD, aes(x=Year,y=AD$"Forested.Land..sq.KM.")) + geom_point() + geom_line()
+ggplot(AD, aes(x=Year,y=AD$"Percent.of.Population.in.Urban.Areas..1MM..")) + geom_point() + geom_line()
+ggplot(AD, aes(x=Year,y=AD$"Energy.Use..kg.of.oil.equivalent.per.capita.")) + geom_point() + geom_line()
+ggplot(AD, aes(x=Year,y=AD$"Renewable.Energy.Consumption..percent.of.total.energy.consumption.")) + geom_point() + geom_line()
+
+# ggplot()+
+#   geom_line(aes(Year, Transport, colour="Transport"), AD) +
+#   geom_line(aes(Year, Waste, colour="Waste"), AD) +
+#   geom_line(aes(Year, Other, colour="Other"), AD) +
+#   labs(title="CO2 vs Year") +
+#   labs(x="Year", y="CO2") +
+#   geom_point() +
+#   theme(plot.title=element_text(size=15,
+#                                     hjust=0.5,
+#                                     lineheight=1.2))
+# 
+# cor(AD)
+# graph = cor.ci(AD, method ='spearman')
+
+
+```
+
+```{r}
+AD
+ggplot()+
+  geom_line(aes(Year, AD$"Total.1", colour="Total.1"), AD) +
+  geom_line(aes(Year, AD$"Total.2", colour="Total.2"), AD) +
+  labs(title="CO2 vs Year") +
+  labs(x="Year", y="CO2") +
+  geom_point() +
+  theme(plot.title=element_text(size=15,
+                                    hjust=0.5,
+                                    lineheight=1.2))
+
+```
+
+
+
+```{r}
+CD$ID = CD[,1]
+
+CD2015 = CD %>% dplyr::select(ID,Sector,Location,X2015) %>% mutate(Year = 2015)
+CD2016 = CD %>% dplyr::select(ID,Sector,Location,X2016) %>% mutate(Year = 2016)
+CD2017 = CD %>% dplyr::select(ID,Sector,Location,X2017) %>% mutate(Year = 2017)
+CD2018 = CD %>% dplyr::select(ID,Sector,Location,X2018) %>% mutate(Year = 2018)
+CD2019 = CD %>% dplyr::select(ID,Sector,Location,X2019.) %>% mutate(Year = 2019)
+
+names(CD2015)[names(CD2015) == 'X2015'] <- 'co2'
+names(CD2016)[names(CD2016) == 'X2016'] <- 'co2'
+names(CD2017)[names(CD2017) == 'X2017'] <- 'co2'
+names(CD2018)[names(CD2018) == 'X2018'] <- 'co2'
+names(CD2019)[names(CD2019) == 'X2019.'] <- 'co2'
+
+data = rbind(CD2015,CD2016,CD2017,CD2018,CD2019)
+data
+
+
+
+```
+
+```{r}
+AD$Year = AD[,1]
+
+AD1 = AD %>% dplyr::select(Year,"Buildings...Land.Use") %>% mutate(Source = "Land Use")
+AD2 = AD %>% dplyr::select(Year,"Energy..Manufacturing...Construction") %>% mutate(Source = "Energy")
+AD3 = AD %>% dplyr::select(Year,"Industrial.Processes...Product.Use") %>% mutate(Source = "Product Use")
+AD4 = AD %>% dplyr::select(Year,Other) %>% mutate(Source = "Other")
+AD5 = AD %>% dplyr::select(Year,Transport) %>% mutate(Source = "Transport")
+AD6 = AD %>% dplyr::select(Year,Waste) %>% mutate(Source = "Waste")
+ADTotal = AD %>% dplyr::select(Year,Total) %>% mutate(Source = "Total")
+
+names(AD1)[names(AD1) == "Buildings...Land.Use"] <- 'co2'
+names(AD2)[names(AD2) == "Energy..Manufacturing...Construction"] <- 'co2'
+names(AD3)[names(AD3) == "Industrial.Processes...Product.Use"] <- 'co2'
+names(AD4)[names(AD4) == "Other"] <- 'co2'
+names(AD5)[names(AD5) == "Transport"] <- 'co2'
+names(AD6)[names(AD6) == "Waste"] <- 'co2'
+names(ADTotal)[names(ADTotal) == "Total"] <- 'co2'
+
+CleanAD = rbind(AD1,AD2,AD3,AD4,AD5,AD6,ADTotal)
+
+```
+
+```{r}
+CleanAD$Source = factor(CleanAD$Source)
+
+CleanAD
+
+ggplot(CleanAD, aes(x=Year, y=co2, color = Source))+
+  labs(title="CO2 emission by different sectors") +
+  labs(x="Year", y="CO2") +
+  geom_point() +
+  geom_line() +
+  theme(plot.title=element_text(size=15,
+                                    hjust=0.5,
+                                    lineheight=1.2))
+
+ADtrend =  CleanAD %>% filter(Year > 2011, Source == "Total")
+
+model1 = lm(data = ADtrend, co2 ~ Year)
+
+new = seq(from=2020, to=2030)
+followyear = data.frame(Year = new)
+
+follow = predict(model1, newdata = followyear, interval = "prediction") %>% as.data.frame()
+TotalTrend = predict(model1, newdata = followyear) %>% as.data.frame()
+
+follow$Source = "Total"
+
+follow$year = new
+follow
+
+TotalTrend$Source = "Total"
+TotalTrend$Year = new
+names(TotalTrend)[names(TotalTrend) == "."] <- 'co2'
+
+TotalTrend
+CleanAD
+
+predict = rbind(TotalTrend, CleanAD)
+
+ggplot()+
+  geom_line(aes(year,fit),follow) +
+  geom_line(aes(year,lwr),follow) +
+  geom_line(aes(year,upr),follow) +
+  labs(title="CO2 vs Year") +
+  labs(x="Year", y="CO2") +
+  geom_point() +
+  theme(plot.title=element_text(size=15,
+                                    hjust=0.5,
+                                    lineheight=1.2))
+```
+
+```{r}
+
+
+predict
+a = predict %>% filter(Source == "Total")
+
+predict
+
+ggplot(a, aes(x=Year, y=co2, color = Source))+
+  labs(title="CO2 total emission") +
+  labs(x="Year", y="CO2") +
+  geom_point() +
+  geom_line() +
+  # geom_vline(xintercept = 2011, color = "blue")+
+  geom_vline(xintercept = 2019, linetype="dotted",color = "blue")
+  theme(plot.title=element_text(size=15,
+                                    hjust=0.5,
+                                    lineheight=1.2))
+
+  
+a$bond = (a$co2 * 0.2)/1000
+a$"2y" = a$bond*0.7
+a$"5y" = a$bond*0.3  
+a = a %>% filter(a$Year > 2019)  
+
+b = a %>% filter(a$Year < 2025)
+
+c = a %>% filter(a$Year >= 2025, a$Year != 2030)
+
+b$"5y" = 53060.97
+c$"5y" = 47188.59 
+
+d = rbind(b,c)
+d$"2y"[d$Year == 2021] = d$"2y"[d$Year == 2020]
+d$"2y"[d$Year == 2023] = d$"2y"[d$Year == 2022]
+d$"2y"[d$Year == 2025] = d$"2y"[d$Year == 2024]
+d$"2y"[d$Year == 2027] = d$"2y"[d$Year == 2026]
+d$"2y"[d$Year == 2029] = d$"2y"[d$Year == 2028]
+
+d
+
+z = data.frame(d)
+z$"pvy2"= (d$"2y" * 1198.59)
+z$"pvy5"= (d$"5y" * 2890.71)
+z
+
+pv2pv = (148396158 / (1.0246^0) +
+          141826815/ (1.0246^2)+
+          135257473/ (1.0246^4)+
+          128688130/ (1.0246^6)+
+          122118788/ (1.0246^8))
+
+pv2pv + pv5pv
+
+pv5pv = 153383877 + 136408529/(1.0246^5)
+
+pv5pv
+
+```
+
+
+
+```{r}
+AD
+
+AD$GDPperCap = AD$"Gross.Domestic.Product..current.皮."/AD$"Population"
+
+AD
+ggplot(data = AD, aes(x=Year,y=GDPperCap))+
+  geom_point()+
+  geom_line()
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
